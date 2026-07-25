@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
+use App\Events\OrderCreated;
 use App\Events\OrderPaid;
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -97,6 +98,10 @@ class Order extends Model
         static::creating(function (Order $order): void {
             $order->order_number ??= 'ORD-'.strtoupper(Str::random(10));
             $order->digital_access_token ??= Str::random(40);
+        });
+
+        static::created(function (Order $order): void {
+            event(new OrderCreated($order));
         });
     }
 
