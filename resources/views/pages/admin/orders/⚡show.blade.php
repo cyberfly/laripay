@@ -50,12 +50,33 @@ new #[Title('Order details')] class extends Component
 };
 ?>
 
-<div class="max-w-2xl space-y-6">
-        <flux:heading size="xl">{{ __('Order') }} {{ $order->order_number }}</flux:heading>
+<div class="max-w-4xl space-y-6">
+    <flux:breadcrumbs>
+        <flux:breadcrumbs.item :href="route('admin.orders.index')" wire:navigate>{{ __('Orders') }}</flux:breadcrumbs.item>
+        <flux:breadcrumbs.item>{{ $order->order_number }}</flux:breadcrumbs.item>
+    </flux:breadcrumbs>
 
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+            <flux:heading size="xl">{{ __('Order') }} {{ $order->order_number }}</flux:heading>
+            <flux:text class="mt-1">{{ __('Placed on') }} {{ $order->created_at->format('Y-m-d H:i') }}</flux:text>
+        </div>
+
+        <div class="flex gap-2">
+            <flux:badge :color="$order->payment_status->color()">{{ $order->payment_status->label() }}</flux:badge>
+            <flux:badge :color="$order->status->color()">{{ $order->status->label() }}</flux:badge>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <flux:card class="space-y-2">
             <flux:subheading>{{ __('Customer') }}</flux:subheading>
-            <flux:text>{{ $order->customer_name }} &mdash; {{ $order->customer_email }}</flux:text>
+            <flux:text>
+                <flux:link :href="route('admin.customers.show', $order->customer_email)" wire:navigate>
+                    {{ $order->customer_name }}
+                </flux:link>
+                &mdash; {{ $order->customer_email }}
+            </flux:text>
             @if ($order->customer_phone)
                 <flux:text>{{ $order->customer_phone }}</flux:text>
             @endif
@@ -79,14 +100,14 @@ new #[Title('Order details')] class extends Component
                 <flux:text class="text-green-600">{{ __('Discount') }} ({{ $order->coupon_code_snapshot }}): -{{ $order->currency_snapshot }} {{ number_format($order->discount_cents_snapshot / 100, 2) }}</flux:text>
                 <flux:text class="font-semibold">{{ __('Total') }}: {{ $order->currency_snapshot }} {{ number_format($order->total_cents_snapshot / 100, 2) }}</flux:text>
             @else
-                <flux:text>{{ $order->currency_snapshot }} {{ number_format($order->total_cents_snapshot / 100, 2) }}</flux:text>
+                <flux:text class="font-semibold">{{ __('Total') }}: {{ $order->currency_snapshot }} {{ number_format($order->total_cents_snapshot / 100, 2) }}</flux:text>
             @endif
         </flux:card>
 
         <flux:card class="space-y-4">
             <flux:subheading>{{ __('Payment') }}</flux:subheading>
-            <flux:badge :color="$order->payment_status === PaymentStatus::Paid ? 'lime' : 'zinc'">
-                {{ $order->payment_status->value }}
+            <flux:badge :color="$order->payment_status->color()">
+                {{ $order->payment_status->label() }}
             </flux:badge>
 
             @if ($order->payment_status !== PaymentStatus::Paid)
@@ -101,7 +122,7 @@ new #[Title('Order details')] class extends Component
 
             <flux:select wire:model="status" :label="__('Status')">
                 @foreach (OrderStatus::cases() as $case)
-                    <flux:select.option value="{{ $case->value }}">{{ ucfirst($case->value) }}</flux:select.option>
+                    <flux:select.option value="{{ $case->value }}">{{ $case->label() }}</flux:select.option>
                 @endforeach
             </flux:select>
 
@@ -112,3 +133,4 @@ new #[Title('Order details')] class extends Component
             <flux:button wire:click="updateFulfillment" variant="primary">{{ __('Update') }}</flux:button>
         </flux:card>
     </div>
+</div>

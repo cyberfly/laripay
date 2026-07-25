@@ -38,21 +38,35 @@ new #[Title('Customer details')] class extends Component
 ?>
 
 <div class="max-w-3xl space-y-6">
-        <flux:heading size="xl">{{ $customer_name }}</flux:heading>
+    <flux:breadcrumbs>
+        <flux:breadcrumbs.item :href="route('admin.customers.index')" wire:navigate>{{ __('Customers') }}</flux:breadcrumbs.item>
+        <flux:breadcrumbs.item>{{ $customer_name }}</flux:breadcrumbs.item>
+    </flux:breadcrumbs>
 
+    <div class="flex items-center gap-4">
+        <flux:avatar size="lg" :name="$customer_name" color="auto" />
+        <div>
+            <flux:heading size="xl">{{ $customer_name }}</flux:heading>
+            <flux:text>{{ $email }}</flux:text>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <x-admin.stat :label="__('Orders')" :value="$orders->count()" icon="shopping-bag" color="zinc" />
+        <x-admin.stat :label="__('Total spent')" :value="$currency.' '.number_format($total_spent / 100, 2)" icon="banknotes" color="lime" />
+        <x-admin.stat :label="__('Avg. order value')" :value="$currency.' '.number_format($orders->count() ? $total_spent / $orders->count() / 100 : 0, 2)" icon="chart-bar" color="blue" />
+    </div>
+
+    @if ($customer_phone)
         <flux:card class="space-y-2">
             <flux:subheading>{{ __('Contact') }}</flux:subheading>
             <flux:text>{{ $email }}</flux:text>
-            @if ($customer_phone)
-                <flux:text>{{ $customer_phone }}</flux:text>
-            @endif
+            <flux:text>{{ $customer_phone }}</flux:text>
         </flux:card>
+    @endif
 
-        <flux:card class="space-y-2">
-            <flux:subheading>{{ __('Summary') }}</flux:subheading>
-            <flux:text>{{ __('Orders') }}: {{ $orders->count() }}</flux:text>
-            <flux:text>{{ __('Total spent') }}: {{ $currency }} {{ number_format($total_spent / 100, 2) }}</flux:text>
-        </flux:card>
+    <div class="space-y-3">
+        <flux:subheading>{{ __('Order history') }}</flux:subheading>
 
         <flux:table>
             <flux:table.columns>
@@ -67,22 +81,29 @@ new #[Title('Customer details')] class extends Component
             <flux:table.rows>
                 @foreach ($orders as $order)
                     <flux:table.row wire:key="order-{{ $order->id }}">
-                        <flux:table.cell>{{ $order->order_number }}</flux:table.cell>
+                        <flux:table.cell variant="strong">{{ $order->order_number }}</flux:table.cell>
                         <flux:table.cell>{{ $order->currency_snapshot }} {{ number_format($order->total_cents_snapshot / 100, 2) }}</flux:table.cell>
                         <flux:table.cell>
-                            <flux:badge :color="$order->payment_status === PaymentStatus::Paid ? 'lime' : 'zinc'">
-                                {{ $order->payment_status->value }}
+                            <flux:badge size="sm" :color="$order->payment_status->color()">
+                                {{ $order->payment_status->label() }}
                             </flux:badge>
                         </flux:table.cell>
-                        <flux:table.cell>{{ $order->status->value }}</flux:table.cell>
+                        <flux:table.cell>
+                            <flux:badge size="sm" :color="$order->status->color()">
+                                {{ $order->status->label() }}
+                            </flux:badge>
+                        </flux:table.cell>
                         <flux:table.cell>{{ $order->created_at->format('Y-m-d') }}</flux:table.cell>
                         <flux:table.cell>
-                            <flux:button size="sm" :href="route('admin.orders.show', $order)" wire:navigate>
-                                {{ __('View') }}
-                            </flux:button>
+                            <div class="flex justify-end">
+                                <flux:button size="sm" :href="route('admin.orders.show', $order)" wire:navigate>
+                                    {{ __('View') }}
+                                </flux:button>
+                            </div>
                         </flux:table.cell>
                     </flux:table.row>
                 @endforeach
             </flux:table.rows>
         </flux:table>
     </div>
+</div>

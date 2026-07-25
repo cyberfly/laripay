@@ -24,11 +24,19 @@ new #[Title('New product')] class extends Component
 ?>
 
 <div class="max-w-2xl space-y-6">
+    <flux:breadcrumbs>
+        <flux:breadcrumbs.item :href="route('admin.products.index')" wire:navigate>{{ __('Products') }}</flux:breadcrumbs.item>
+        <flux:breadcrumbs.item>{{ __('New product') }}</flux:breadcrumbs.item>
+    </flux:breadcrumbs>
+
     <flux:heading size="xl">{{ __('New product') }}</flux:heading>
 
     <form wire:submit="save" class="space-y-6">
         @include('pages.admin.products._form')
 
-        <flux:button type="submit" variant="primary">{{ __('Create product') }}</flux:button>
+        <div class="flex justify-end gap-2">
+            <flux:button :href="route('admin.products.index')" wire:navigate>{{ __('Cancel') }}</flux:button>
+            <flux:button type="submit" variant="primary">{{ __('Create product') }}</flux:button>
+        </div>
     </form>
 </div>

@@ -42,24 +42,16 @@ new #[Title('Admin dashboard')] class extends Component
 };
 ?>
 
-<div class="flex h-full w-full flex-1 flex-col gap-4 rounded-xl">
-    <flux:heading size="xl">{{ __('Admin dashboard') }}</flux:heading>
+<div class="flex h-full w-full flex-1 flex-col gap-6 rounded-xl">
+    <div>
+        <flux:heading size="xl">{{ __('Admin dashboard') }}</flux:heading>
+        <flux:text class="mt-1">{{ __('A quick look at your store performance.') }}</flux:text>
+    </div>
 
     <div class="grid auto-rows-min gap-4 md:grid-cols-3">
-        <flux:card class="space-y-2">
-            <flux:subheading>{{ __('Products') }}</flux:subheading>
-            <flux:heading size="xl">{{ $productCount }}</flux:heading>
-        </flux:card>
-
-        <flux:card class="space-y-2">
-            <flux:subheading>{{ __('Pending payments') }}</flux:subheading>
-            <flux:heading size="xl">{{ $pendingOrderCount }}</flux:heading>
-        </flux:card>
-
-        <flux:card class="space-y-2">
-            <flux:subheading>{{ __('New orders') }}</flux:subheading>
-            <flux:heading size="xl">{{ $newOrderCount }}</flux:heading>
-        </flux:card>
+        <x-admin.stat :label="__('Products')" :value="$productCount" icon="cube" color="zinc" />
+        <x-admin.stat :label="__('Pending payments')" :value="$pendingOrderCount" icon="clock" color="amber" />
+        <x-admin.stat :label="__('New orders')" :value="$newOrderCount" icon="shopping-bag" color="blue" />
     </div>
 
     <flux:card class="space-y-4">
@@ -99,8 +91,10 @@ new #[Title('Admin dashboard')] class extends Component
         </div>
     </flux:card>
 
-    <div class="flex gap-4">
-        <flux:button :href="route('admin.products.index')" wire:navigate>{{ __('Manage products') }}</flux:button>
-        <flux:button :href="route('admin.orders.index')" wire:navigate variant="filled">{{ __('Manage orders') }}</flux:button>
+    <div class="flex flex-wrap gap-3">
+        <flux:button :href="route('admin.products.index')" wire:navigate icon="cube">{{ __('Manage products') }}</flux:button>
+        <flux:button :href="route('admin.orders.index')" wire:navigate icon="shopping-bag">{{ __('Manage orders') }}</flux:button>
+        <flux:button :href="route('admin.customers.index')" wire:navigate icon="users">{{ __('View customers') }}</flux:button>
+        <flux:button :href="route('admin.coupons.index')" wire:navigate icon="ticket">{{ __('Manage coupons') }}</flux:button>
     </div>
 </div>
