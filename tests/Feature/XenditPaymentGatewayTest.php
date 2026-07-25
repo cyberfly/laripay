@@ -53,12 +53,13 @@ test('initiate creates a xendit invoice and returns its redirect url', function 
 test('handleCallback marks the order as paid on a valid PAID payload', function () {
     Event::fake([OrderPaid::class]);
 
-    $order = Order::factory()->pending()->create(['xendit_invoice_id' => 'inv_123']);
+    $order = Order::factory()->pending()->create(['xendit_invoice_id' => 'inv_123', 'total_cents_snapshot' => 150000]);
 
     $request = Request::create('/webhooks/xendit', 'POST', [
         'id' => 'inv_123',
         'external_id' => $order->order_number,
         'status' => 'PAID',
+        'amount' => 1500,
     ]);
     $request->headers->set('x-callback-token', 'test-callback-token');
 
@@ -70,6 +71,26 @@ test('handleCallback marks the order as paid on a valid PAID payload', function 
     expect($order->paid_at)->not->toBeNull();
 
     Event::assertDispatched(OrderPaid::class);
+});
+
+test('handleCallback rejects a PAID payload whose amount does not match the order total', function () {
+    Event::fake([OrderPaid::class]);
+
+    $order = Order::factory()->pending()->create(['xendit_invoice_id' => 'inv_123', 'total_cents_snapshot' => 150000]);
+
+    $request = Request::create('/webhooks/xendit', 'POST', [
+        'id' => 'inv_123',
+        'external_id' => $order->order_number,
+        'status' => 'PAID',
+        'amount' => 1, // far below the order's actual total of 1500.00
+    ]);
+    $request->headers->set('x-callback-token', 'test-callback-token');
+
+    expect(fn () => (new XenditPaymentGateway)->handleCallback($request))
+        ->toThrow(HttpException::class);
+
+    expect($order->fresh()->payment_status)->toBe(PaymentStatus::Pending);
+    Event::assertNotDispatched(OrderPaid::class);
 });
 
 test('handleCallback marks the order as failed on an EXPIRED payload', function () {
@@ -91,12 +112,13 @@ test('handleCallback marks the order as failed on an EXPIRED payload', function 
 test('handleCallback is idempotent for a repeated PAID payload', function () {
     Event::fake([OrderPaid::class]);
 
-    $order = Order::factory()->pending()->create(['xendit_invoice_id' => 'inv_123']);
+    $order = Order::factory()->pending()->create(['xendit_invoice_id' => 'inv_123', 'total_cents_snapshot' => 150000]);
 
     $request = Request::create('/webhooks/xendit', 'POST', [
         'id' => 'inv_123',
         'external_id' => $order->order_number,
         'status' => 'PAID',
+        'amount' => 1500,
     ]);
     $request->headers->set('x-callback-token', 'test-callback-token');
 
@@ -116,6 +138,21 @@ test('handleCallback aborts with 403 for an invalid token', function () {
         'status' => 'PAID',
     ]);
     $request->headers->set('x-callback-token', 'wrong-token');
+
+    (new XenditPaymentGateway)->handleCallback($request);
+})->throws(HttpException::class);
+
+test('handleCallback fails closed with 403 when no callback token is configured', function () {
+    config(['services.xendit.callback_token' => null]);
+
+    $order = Order::factory()->pending()->create(['xendit_invoice_id' => 'inv_123']);
+
+    $request = Request::create('/webhooks/xendit', 'POST', [
+        'id' => 'inv_123',
+        'external_id' => $order->order_number,
+        'status' => 'PAID',
+    ]);
+    // Deliberately no x-callback-token header, matching the misconfigured-token case.
 
     (new XenditPaymentGateway)->handleCallback($request);
 })->throws(HttpException::class);

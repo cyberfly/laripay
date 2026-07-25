@@ -8,6 +8,7 @@ use App\Payments\Contracts\PaymentGateway;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class XenditPaymentGateway implements PaymentGateway
 {
@@ -40,38 +41,73 @@ class XenditPaymentGateway implements PaymentGateway
 
     public function handleCallback(Request $request): void
     {
-        abort_unless(
-            hash_equals((string) config('services.xendit.callback_token'), (string) $request->header('x-callback-token')),
-            403,
-        );
+        $this->verifyCallbackToken($request);
 
         $externalId = $request->input('external_id');
         $invoiceId = $request->input('id');
         $status = $request->input('status');
+        $amount = $request->input('amount');
 
-        $order = Order::query()
-            ->where('order_number', $externalId)
-            ->orWhere('xendit_invoice_id', $invoiceId)
-            ->first();
+        DB::transaction(function () use ($externalId, $invoiceId, $status, $amount): void {
+            $order = Order::query()
+                ->where('order_number', $externalId)
+                ->orWhere('xendit_invoice_id', $invoiceId)
+                ->lockForUpdate()
+                ->first();
 
-        abort_if($order === null, 404);
+            abort_if($order === null, 404);
 
-        if (! $order->payment_status->isPending()) {
-            return;
-        }
+            if (! $order->payment_status->isPending()) {
+                return;
+            }
 
-        if (in_array($status, self::PAID_STATUSES, true)) {
-            DB::transaction(function () use ($order, $invoiceId): void {
+            if (in_array($status, self::PAID_STATUSES, true)) {
+                abort_unless($this->amountMatches($order, $amount), 422);
+
                 $order->forceFill(['payment_reference' => $invoiceId])->save();
                 $order->markAsPaid();
-            });
 
-            return;
+                return;
+            }
+
+            if (in_array($status, self::FAILED_STATUSES, true)) {
+                $order->forceFill(['payment_status' => PaymentStatus::Failed])->save();
+            }
+        });
+    }
+
+    /**
+     * Reject the webhook unless a callback token is configured and the
+     * request's `x-callback-token` header matches it exactly. Fails closed:
+     * a missing/blank configured token is treated as "reject everything",
+     * never as "accept everything" (hash_equals('', '') would otherwise
+     * return true for an unconfigured token and an absent header).
+     */
+    private function verifyCallbackToken(Request $request): void
+    {
+        $configuredToken = (string) config('services.xendit.callback_token');
+
+        if ($configuredToken === '') {
+            Log::error('Xendit callback token is not configured; rejecting webhook request.');
+
+            abort(403);
         }
 
-        if (in_array($status, self::FAILED_STATUSES, true)) {
-            $order->forceFill(['payment_status' => PaymentStatus::Failed])->save();
+        abort_unless(hash_equals($configuredToken, (string) $request->header('x-callback-token')), 403);
+    }
+
+    /**
+     * Verify the invoiced amount reported by Xendit matches what the order
+     * was created for, comparing in integer cents to avoid float precision
+     * issues, before trusting a PAID status and confirming the order.
+     */
+    private function amountMatches(Order $order, mixed $amount): bool
+    {
+        if (! is_numeric($amount)) {
+            return false;
         }
+
+        return (int) round(((float) $amount) * 100) === $order->total_cents_snapshot;
     }
 
     /**
