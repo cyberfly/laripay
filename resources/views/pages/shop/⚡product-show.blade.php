@@ -102,7 +102,7 @@ new #[Layout('layouts::shop')] class extends Component
     </flux:breadcrumbs>
 
     <div class="grid gap-10 lg:grid-cols-2 lg:gap-16">
-        <div class="space-y-4">
+        <div class="space-y-6">
             <div class="aspect-square overflow-hidden rounded-2xl bg-zinc-100 dark:bg-zinc-800">
                 @if (! empty($product->images))
                     <img
@@ -126,9 +126,7 @@ new #[Layout('layouts::shop')] class extends Component
                     @endforeach
                 </div>
             @endif
-        </div>
 
-        <div class="space-y-6">
             <div class="space-y-3">
                 <flux:badge size="sm" :color="$product->type === ProductType::Digital ? 'blue' : 'zinc'">
                     {{ $product->type === ProductType::Digital ? __('Digital product') : __('Physical product') }}
@@ -142,8 +140,8 @@ new #[Layout('layouts::shop')] class extends Component
             </div>
 
             @if ($product->description)
-                <flux:text class="leading-relaxed text-zinc-600 dark:text-zinc-300">
-                    {{ $product->description }}
+                <flux:text class="rich-text leading-relaxed text-zinc-600 dark:text-zinc-300">
+                    {!! $product->description !!}
                 </flux:text>
             @endif
 
@@ -163,7 +161,9 @@ new #[Layout('layouts::shop')] class extends Component
                     @endif
                 </div>
             </div>
+        </div>
 
+        <div class="lg:sticky lg:top-8 lg:self-start">
             <flux:card class="space-y-5">
                 <div>
                     <flux:heading size="lg">{{ __('Order this product') }}</flux:heading>

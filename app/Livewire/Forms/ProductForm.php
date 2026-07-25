@@ -4,6 +4,7 @@ namespace App\Livewire\Forms;
 
 use App\Enums\ProductType;
 use App\Models\Product;
+use App\Support\HtmlSanitizer;
 use Livewire\Attributes\Validate;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\Form;
@@ -90,7 +91,7 @@ class ProductForm extends Form
     {
         return [
             'name' => $this->name,
-            'description' => $this->description,
+            'description' => HtmlSanitizer::sanitize($this->description),
             'price_cents' => (int) round(((float) $this->price) * 100),
             'currency' => strtoupper($this->currency),
             'type' => ProductType::from($this->type),

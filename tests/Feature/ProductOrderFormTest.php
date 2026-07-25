@@ -49,3 +49,13 @@ test('ordering a digital product does not require shipping fields', function () 
 
     expect(Order::count())->toBe(1);
 });
+
+test('product description is rendered as formatted html on the storefront', function () {
+    $product = Product::factory()->create([
+        'is_active' => true,
+        'description' => '<p>Great <strong>value</strong>.</p>',
+    ]);
+
+    Livewire::test('pages::shop.product-show', ['product' => $product])
+        ->assertSeeHtml('<p>Great <strong>value</strong>.</p>');
+});

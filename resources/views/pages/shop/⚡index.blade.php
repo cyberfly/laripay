@@ -90,9 +90,9 @@ new #[Layout('layouts::shop')] #[Title('Products')] class extends Component
                         <div class="flex flex-1 flex-col gap-1 p-4">
                             <flux:heading class="line-clamp-1">{{ $product->name }}</flux:heading>
 
-                            @if ($product->description)
+                            @if ($product->descriptionExcerpt())
                                 <flux:text size="sm" class="line-clamp-2 text-zinc-500 dark:text-zinc-400">
-                                    {{ $product->description }}
+                                    {{ $product->descriptionExcerpt() }}
                                 </flux:text>
                             @endif
 

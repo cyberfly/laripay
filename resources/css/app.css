@@ -64,3 +64,43 @@ select:focus[data-flux-control] {
 /* \[:where(&)\]:size-4 {
     @apply size-4;
 } */
+
+trix-editor {
+    @apply min-h-32 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100;
+}
+
+trix-editor:focus {
+    @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
+}
+
+trix-toolbar .trix-button-group {
+    @apply rounded-lg border-gray-200 dark:border-zinc-700;
+}
+
+trix-toolbar .trix-button {
+    @apply border-gray-200 bg-white text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100;
+}
+
+.rich-text :where(p, ul, ol, blockquote):not(:last-child) {
+    @apply mb-3;
+}
+
+.rich-text :where(ul, ol) {
+    @apply ml-5 list-outside;
+}
+
+.rich-text ul {
+    @apply list-disc;
+}
+
+.rich-text ol {
+    @apply list-decimal;
+}
+
+.rich-text a {
+    @apply underline underline-offset-2;
+}
+
+.rich-text blockquote {
+    @apply border-l-2 border-zinc-300 pl-3 italic dark:border-zinc-600;
+}

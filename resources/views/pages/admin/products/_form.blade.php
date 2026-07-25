@@ -1,6 +1,6 @@
 <flux:input wire:model="form.name" :label="__('Name')" required />
 
-<flux:textarea wire:model="form.description" :label="__('Description')" rows="4" />
+<x-trix-editor wire-model="form.description" :label="__('Description')" />
 
 <div class="grid grid-cols-2 gap-4">
     <flux:input wire:model="form.price" :label="__('Price')" type="number" step="0.01" min="0" required />

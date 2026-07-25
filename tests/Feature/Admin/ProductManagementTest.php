@@ -56,6 +56,33 @@ test('admin can edit a product', function () {
     expect($product->fresh()->name)->toBe('New Name');
 });
 
+test('product create form renders the rich text description editor', function () {
+    $this->actingAs($this->admin);
+
+    Livewire::test('pages::admin.products.create')
+        ->assertSeeHtml('<trix-editor');
+});
+
+test('product description is sanitized of disallowed tags and attributes on save', function () {
+    $this->actingAs($this->admin);
+
+    Livewire::test('pages::admin.products.create')
+        ->set('form.name', 'Cool Gadget')
+        ->set('form.description', '<p>Great <strong>value</strong>.</p><script>alert(1)</script><a href="javascript:alert(1)" onclick="alert(1)">click</a>')
+        ->set('form.price', '99.90')
+        ->set('form.currency', 'MYR')
+        ->set('form.type', 'physical')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $product = Product::first();
+
+    expect($product->description)->toContain('<p>Great <strong>value</strong>.</p>');
+    expect($product->description)->not->toContain('<script>');
+    expect($product->description)->not->toContain('onclick');
+    expect($product->description)->not->toContain('javascript:');
+});
+
 test('admin can delete a product', function () {
     $product = Product::factory()->create();
 

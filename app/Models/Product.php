@@ -45,6 +45,15 @@ class Product extends Model
         return 'slug';
     }
 
+    public function descriptionExcerpt(int $length = 150): ?string
+    {
+        if (! $this->description) {
+            return null;
+        }
+
+        return Str::limit(trim(strip_tags($this->description)), $length);
+    }
+
     protected static function booted(): void
     {
         static::creating(function (Product $product): void {
