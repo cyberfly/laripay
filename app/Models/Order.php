@@ -38,6 +38,8 @@ use Illuminate\Support\Str;
  * @property string $payment_method
  * @property PaymentStatus $payment_status
  * @property string|null $payment_reference
+ * @property string|null $xendit_invoice_id
+ * @property Carbon|null $xendit_expires_at
  * @property Carbon|null $paid_at
  * @property int|null $payment_confirmed_by
  * @property OrderStatus $status
@@ -50,7 +52,7 @@ use Illuminate\Support\Str;
     'coupon_code_snapshot', 'discount_cents_snapshot', 'total_cents_snapshot',
     'customer_name', 'customer_email', 'customer_phone',
     'shipping_address_line1', 'shipping_address_line2', 'city', 'state', 'postcode', 'country',
-    'payment_method', 'payment_status', 'payment_reference',
+    'payment_method', 'payment_status', 'payment_reference', 'xendit_invoice_id', 'xendit_expires_at',
     'status', 'tracking_number', 'shipped_at',
 ])]
 class Order extends Model
@@ -65,6 +67,7 @@ class Order extends Model
             'status' => OrderStatus::class,
             'paid_at' => 'datetime',
             'shipped_at' => 'datetime',
+            'xendit_expires_at' => 'datetime',
         ];
     }
 

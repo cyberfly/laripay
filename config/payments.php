@@ -1,6 +1,7 @@
 <?php
 
 use App\Payments\ManualPaymentGateway;
+use App\Payments\XenditPaymentGateway;
 
 return [
 
@@ -20,6 +21,7 @@ return [
 
     'gateways' => [
         'manual' => ManualPaymentGateway::class,
+        'xendit' => XenditPaymentGateway::class,
     ],
 
 ];

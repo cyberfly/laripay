@@ -110,6 +110,16 @@ new #[Title('Order details')] class extends Component
                 {{ $order->payment_status->label() }}
             </flux:badge>
 
+            <flux:text class="text-zinc-500 dark:text-zinc-400">
+                {{ __('Method') }}: {{ ucfirst($order->payment_method) }}
+            </flux:text>
+
+            @if ($order->payment_reference)
+                <flux:text class="text-zinc-500 dark:text-zinc-400">
+                    {{ __('Reference') }}: {{ $order->payment_reference }}
+                </flux:text>
+            @endif
+
             @if ($order->payment_status !== PaymentStatus::Paid)
                 <flux:button variant="primary" wire:click="markAsPaid" wire:confirm="{{ __('Mark this order as paid?') }}">
                     {{ __('Mark as paid') }}

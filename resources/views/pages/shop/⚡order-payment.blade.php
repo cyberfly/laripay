@@ -17,12 +17,17 @@ new #[Layout('layouts::shop')] class extends Component
 
     public function render()
     {
+        $this->order->refresh();
+
         return $this->view()->title(__('Payment for :order', ['order' => $this->order->order_number]));
     }
 };
 ?>
 
-<div class="mx-auto max-w-xl space-y-6 py-10">
+<div
+    class="mx-auto max-w-xl space-y-6 py-10"
+    @if ($order->payment_status !== PaymentStatus::Paid) wire:poll.5s @endif
+>
     <div class="text-center">
         <flux:heading size="xl">{{ __('Payment instructions') }}</flux:heading>
         <flux:text class="mt-1 text-zinc-500 dark:text-zinc-400">

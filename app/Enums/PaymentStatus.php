@@ -9,6 +9,11 @@ enum PaymentStatus: string
     case Failed = 'failed';
     case Refunded = 'refunded';
 
+    public function isPending(): bool
+    {
+        return $this === self::Pending;
+    }
+
     public function label(): string
     {
         return match ($this) {
