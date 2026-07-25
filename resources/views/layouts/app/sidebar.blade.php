@@ -28,6 +28,9 @@
                         <flux:sidebar.item icon="shopping-bag" :href="route('admin.orders.index')" :current="request()->routeIs('admin.orders.*')" wire:navigate>
                             {{ __('Orders') }}
                         </flux:sidebar.item>
+                        <flux:sidebar.item icon="users" :href="route('admin.customers.index')" :current="request()->routeIs('admin.customers.*')" wire:navigate>
+                            {{ __('Customers') }}
+                        </flux:sidebar.item>
                         <flux:sidebar.item icon="ticket" :href="route('admin.coupons.index')" :current="request()->routeIs('admin.coupons.*')" wire:navigate>
                             {{ __('Coupons') }}
                         </flux:sidebar.item>
