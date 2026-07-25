@@ -17,10 +17,15 @@ use Illuminate\Support\Str;
  * @property int $id
  * @property string $order_number
  * @property int $product_id
+ * @property int|null $coupon_id
  * @property string $product_name_snapshot
  * @property int $price_cents_snapshot
  * @property string $currency_snapshot
  * @property string $product_type_snapshot
+ * @property int $quantity
+ * @property string|null $coupon_code_snapshot
+ * @property int $discount_cents_snapshot
+ * @property int $total_cents_snapshot
  * @property string $customer_name
  * @property string $customer_email
  * @property string|null $customer_phone
@@ -41,7 +46,8 @@ use Illuminate\Support\Str;
  * @property string|null $digital_access_token
  */
 #[Fillable([
-    'product_id', 'product_name_snapshot', 'price_cents_snapshot', 'currency_snapshot', 'product_type_snapshot',
+    'product_id', 'coupon_id', 'product_name_snapshot', 'price_cents_snapshot', 'currency_snapshot', 'product_type_snapshot', 'quantity',
+    'coupon_code_snapshot', 'discount_cents_snapshot', 'total_cents_snapshot',
     'customer_name', 'customer_email', 'customer_phone',
     'shipping_address_line1', 'shipping_address_line2', 'city', 'state', 'postcode', 'country',
     'payment_method', 'payment_status', 'payment_reference',
@@ -73,6 +79,14 @@ class Order extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * @return BelongsTo<Coupon, $this>
+     */
+    public function coupon(): BelongsTo
+    {
+        return $this->belongsTo(Coupon::class);
     }
 
     protected static function booted(): void

@@ -72,7 +72,15 @@ new #[Title('Order details')] class extends Component
         <flux:card class="space-y-2">
             <flux:subheading>{{ __('Product') }}</flux:subheading>
             <flux:text>{{ $order->product_name_snapshot }} ({{ $order->product_type_snapshot }})</flux:text>
-            <flux:text>{{ $order->currency_snapshot }} {{ number_format($order->price_cents_snapshot / 100, 2) }}</flux:text>
+            <flux:text>{{ __('Quantity') }}: {{ $order->quantity }}</flux:text>
+
+            @if ($order->discount_cents_snapshot > 0)
+                <flux:text>{{ __('Subtotal') }}: {{ $order->currency_snapshot }} {{ number_format($order->price_cents_snapshot * $order->quantity / 100, 2) }}</flux:text>
+                <flux:text class="text-green-600">{{ __('Discount') }} ({{ $order->coupon_code_snapshot }}): -{{ $order->currency_snapshot }} {{ number_format($order->discount_cents_snapshot / 100, 2) }}</flux:text>
+                <flux:text class="font-semibold">{{ __('Total') }}: {{ $order->currency_snapshot }} {{ number_format($order->total_cents_snapshot / 100, 2) }}</flux:text>
+            @else
+                <flux:text>{{ $order->currency_snapshot }} {{ number_format($order->total_cents_snapshot / 100, 2) }}</flux:text>
+            @endif
         </flux:card>
 
         <flux:card class="space-y-4">

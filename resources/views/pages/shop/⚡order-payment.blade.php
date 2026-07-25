@@ -36,12 +36,29 @@ new #[Layout('layouts::shop')] class extends Component
             <flux:text class="font-medium text-zinc-900 dark:text-white">{{ $order->product_name_snapshot }}</flux:text>
         </div>
 
+        <div class="flex items-center justify-between">
+            <flux:subheading>{{ __('Quantity') }}</flux:subheading>
+            <flux:text>{{ $order->quantity }}</flux:text>
+        </div>
+
         <flux:separator variant="subtle" />
+
+        @if ($order->discount_cents_snapshot > 0)
+            <div class="flex items-center justify-between">
+                <flux:subheading>{{ __('Subtotal') }}</flux:subheading>
+                <flux:text>{{ $order->currency_snapshot }} {{ number_format($order->price_cents_snapshot * $order->quantity / 100, 2) }}</flux:text>
+            </div>
+            <div class="flex items-center justify-between">
+                <flux:subheading>{{ __('Discount') }} ({{ $order->coupon_code_snapshot }})</flux:subheading>
+                <flux:text class="text-green-600">-{{ $order->currency_snapshot }} {{ number_format($order->discount_cents_snapshot / 100, 2) }}</flux:text>
+            </div>
+            <flux:separator variant="subtle" />
+        @endif
 
         <div class="flex items-center justify-between">
             <flux:subheading>{{ __('Total') }}</flux:subheading>
             <flux:text class="text-lg font-semibold text-zinc-900 dark:text-white">
-                {{ $order->currency_snapshot }} {{ number_format($order->price_cents_snapshot / 100, 2) }}
+                {{ $order->currency_snapshot }} {{ number_format($order->total_cents_snapshot / 100, 2) }}
             </flux:text>
         </div>
     </flux:card>

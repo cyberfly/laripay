@@ -50,6 +50,33 @@ test('ordering a digital product does not require shipping fields', function () 
     expect(Order::count())->toBe(1);
 });
 
+test('order total scales with quantity', function () {
+    $product = Product::factory()->digital()->create(['is_active' => true, 'price_cents' => 1000]);
+
+    Livewire::test('pages::shop.product-show', ['product' => $product])
+        ->set('quantity', 3)
+        ->set('customerName', 'Jane Doe')
+        ->set('customerEmail', 'jane@example.com')
+        ->call('submitOrder')
+        ->assertHasNoErrors();
+
+    $order = Order::first();
+
+    expect($order->quantity)->toBe(3);
+    expect($order->total_cents_snapshot)->toBe(3000);
+});
+
+test('ordering requires a valid quantity', function () {
+    $product = Product::factory()->digital()->create(['is_active' => true]);
+
+    Livewire::test('pages::shop.product-show', ['product' => $product])
+        ->set('quantity', 0)
+        ->set('customerName', 'Jane Doe')
+        ->set('customerEmail', 'jane@example.com')
+        ->call('submitOrder')
+        ->assertHasErrors(['quantity']);
+});
+
 test('product description is rendered as formatted html on the storefront', function () {
     $product = Product::factory()->create([
         'is_active' => true,

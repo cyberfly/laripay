@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Order;
 use App\Models\User;
 
 test('guests are redirected away from admin routes', function () {
@@ -22,4 +23,14 @@ test('admins can access admin routes', function () {
     $response = $this->actingAs($admin)->get(route('admin.dashboard'));
 
     $response->assertOk();
+});
+
+test('admin dashboard shows the orders chart data', function () {
+    $admin = User::factory()->admin()->create();
+    Order::factory()->count(3)->create();
+
+    $response = $this->actingAs($admin)->get(route('admin.dashboard'));
+
+    $response->assertOk();
+    $response->assertSee('Orders (last 14 days)');
 });

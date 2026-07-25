@@ -11,4 +11,8 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
 
     Route::livewire('orders', 'pages::admin.orders.index')->name('orders.index');
     Route::livewire('orders/{order}', 'pages::admin.orders.show')->name('orders.show');
+
+    Route::livewire('coupons', 'pages::admin.coupons.index')->name('coupons.index');
+    Route::livewire('coupons/create', 'pages::admin.coupons.create')->name('coupons.create');
+    Route::livewire('coupons/{coupon}/edit', 'pages::admin.coupons.edit')->name('coupons.edit');
 });

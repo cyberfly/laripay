@@ -1,15 +1,21 @@
 <?php
 
 use App\Enums\ProductType;
+use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\Product;
 use App\Payments\Contracts\PaymentGateway;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 new #[Layout('layouts::shop')] class extends Component
 {
     public Product $product;
+
+    public int $quantity = 1;
 
     public string $customerName = '';
 
@@ -29,6 +35,12 @@ new #[Layout('layouts::shop')] class extends Component
 
     public string $country = '';
 
+    public string $couponCode = '';
+
+    public ?Coupon $appliedCoupon = null;
+
+    public ?string $couponError = null;
+
     public function mount(Product $product): void
     {
         abort_unless($product->is_active, 404);
@@ -41,9 +53,58 @@ new #[Layout('layouts::shop')] class extends Component
         return $this->view()->title($this->product->name);
     }
 
+    public function applyCoupon(): void
+    {
+        $this->couponError = null;
+        $code = strtoupper(trim($this->couponCode));
+
+        if ($code === '') {
+            $this->appliedCoupon = null;
+
+            return;
+        }
+
+        $coupon = Coupon::where('code', $code)->first();
+
+        if (! $coupon || ! $coupon->isRedeemable($this->subtotalCents)) {
+            $this->appliedCoupon = null;
+            $this->couponError = __('This coupon code is invalid or cannot be applied to this order.');
+
+            return;
+        }
+
+        $this->appliedCoupon = $coupon;
+    }
+
+    public function removeCoupon(): void
+    {
+        $this->couponCode = '';
+        $this->appliedCoupon = null;
+        $this->couponError = null;
+    }
+
+    #[Computed]
+    public function subtotalCents(): int
+    {
+        return $this->product->price_cents * $this->quantity;
+    }
+
+    #[Computed]
+    public function discountCents(): int
+    {
+        return $this->appliedCoupon?->calculateDiscount($this->subtotalCents) ?? 0;
+    }
+
+    #[Computed]
+    public function totalCents(): int
+    {
+        return max(0, $this->subtotalCents - $this->discountCents);
+    }
+
     public function submitOrder(): void
     {
         $rules = [
+            'quantity' => 'required|integer|min:1|max:100',
             'customerName' => 'required|string|max:255',
             'customerEmail' => 'required|email|max:255',
             'customerPhone' => 'nullable|string|max:255',
@@ -62,25 +123,53 @@ new #[Layout('layouts::shop')] class extends Component
 
         $validated = $this->validate($rules);
 
-        $order = Order::create([
-            'product_id' => $this->product->id,
-            'product_name_snapshot' => $this->product->name,
-            'price_cents_snapshot' => $this->product->price_cents,
-            'currency_snapshot' => $this->product->currency,
-            'product_type_snapshot' => $this->product->type->value,
-            'customer_name' => $validated['customerName'],
-            'customer_email' => $validated['customerEmail'],
-            'customer_phone' => $validated['customerPhone'] ?? null,
-            'shipping_address_line1' => $validated['shippingAddressLine1'] ?? null,
-            'shipping_address_line2' => $validated['shippingAddressLine2'] ?? null,
-            'city' => $validated['city'] ?? null,
-            'state' => $validated['state'] ?? null,
-            'postcode' => $validated['postcode'] ?? null,
-            'country' => $validated['country'] ?? null,
-            'payment_method' => config('payments.default'),
-            'payment_status' => 'pending',
-            'status' => 'new',
-        ]);
+        $order = DB::transaction(function () use ($validated) {
+            $quantity = $validated['quantity'];
+            $subtotalCents = $this->product->price_cents * $quantity;
+            $coupon = null;
+            $discountCents = 0;
+
+            if ($this->appliedCoupon) {
+                $coupon = Coupon::whereKey($this->appliedCoupon->id)->lockForUpdate()->first();
+
+                if (! $coupon || ! $coupon->isRedeemable($subtotalCents)) {
+                    throw ValidationException::withMessages([
+                        'couponCode' => __('This coupon is no longer valid.'),
+                    ]);
+                }
+
+                $discountCents = $coupon->calculateDiscount($subtotalCents);
+            }
+
+            $order = Order::create([
+                'product_id' => $this->product->id,
+                'coupon_id' => $coupon?->id,
+                'product_name_snapshot' => $this->product->name,
+                'price_cents_snapshot' => $this->product->price_cents,
+                'currency_snapshot' => $this->product->currency,
+                'product_type_snapshot' => $this->product->type->value,
+                'quantity' => $quantity,
+                'coupon_code_snapshot' => $coupon?->code,
+                'discount_cents_snapshot' => $discountCents,
+                'total_cents_snapshot' => $subtotalCents - $discountCents,
+                'customer_name' => $validated['customerName'],
+                'customer_email' => $validated['customerEmail'],
+                'customer_phone' => $validated['customerPhone'] ?? null,
+                'shipping_address_line1' => $validated['shippingAddressLine1'] ?? null,
+                'shipping_address_line2' => $validated['shippingAddressLine2'] ?? null,
+                'city' => $validated['city'] ?? null,
+                'state' => $validated['state'] ?? null,
+                'postcode' => $validated['postcode'] ?? null,
+                'country' => $validated['country'] ?? null,
+                'payment_method' => config('payments.default'),
+                'payment_status' => 'pending',
+                'status' => 'new',
+            ]);
+
+            $coupon?->increment('times_used');
+
+            return $order;
+        });
 
         $gateways = config('payments.gateways');
         $gatewayClass = $gateways[$order->payment_method] ?? $gateways['manual'];
@@ -173,6 +262,8 @@ new #[Layout('layouts::shop')] class extends Component
                 </div>
 
                 <form wire:submit="submitOrder" class="space-y-4">
+                    <flux:input wire:model.live="quantity" type="number" min="1" max="100" :label="__('Quantity')" required />
+
                     <flux:input wire:model="customerName" :label="__('Full name')" required />
                     <flux:input wire:model="customerEmail" type="email" :label="__('Email')" required />
                     <flux:input wire:model="customerPhone" :label="__('Phone')" />
@@ -193,6 +284,40 @@ new #[Layout('layouts::shop')] class extends Component
                             <flux:input wire:model="country" :label="__('Country')" required />
                         </div>
                     @endif
+
+                    <flux:separator text="{{ __('Have a coupon?') }}" />
+
+                    <div class="flex items-end gap-2">
+                        <div class="flex-1">
+                            <flux:input wire:model="couponCode" :label="__('Coupon code')" :disabled="(bool) $appliedCoupon" />
+                        </div>
+                        @if ($appliedCoupon)
+                            <flux:button type="button" wire:click="removeCoupon">{{ __('Remove') }}</flux:button>
+                        @else
+                            <flux:button type="button" wire:click="applyCoupon">{{ __('Apply') }}</flux:button>
+                        @endif
+                    </div>
+
+                    @if ($couponError)
+                        <flux:error>{{ $couponError }}</flux:error>
+                    @endif
+
+                    <div class="space-y-1 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+                        <div class="flex items-center justify-between text-sm">
+                            <span>{{ __('Subtotal') }} ({{ $quantity }} &times; {{ $product->currency }} {{ number_format($product->price_cents / 100, 2) }})</span>
+                            <span>{{ $product->currency }} {{ number_format($this->subtotalCents / 100, 2) }}</span>
+                        </div>
+                        @if ($appliedCoupon)
+                            <div class="flex items-center justify-between text-sm text-green-600">
+                                <span>{{ __('Discount') }} ({{ $appliedCoupon->code }})</span>
+                                <span>-{{ $product->currency }} {{ number_format($this->discountCents / 100, 2) }}</span>
+                            </div>
+                        @endif
+                        <div class="flex items-center justify-between font-semibold">
+                            <span>{{ __('Total') }}</span>
+                            <span>{{ $product->currency }} {{ number_format($this->totalCents / 100, 2) }}</span>
+                        </div>
+                    </div>
 
                     <flux:button type="submit" variant="primary" class="w-full" icon:trailing="arrow-right">
                         {{ __('Place order') }}
