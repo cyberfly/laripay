@@ -109,3 +109,19 @@ test('only one of two concurrent orders can redeem a single-use coupon', functio
     expect($coupon->fresh()->times_used)->toBe(1);
     expect(Order::whereNotNull('coupon_id')->count())->toBe(1);
 });
+
+test('two checkouts that both applied a single-use coupon before either submitted yield one discounted order', function () {
+    $product = Product::factory()->digital()->create(['is_active' => true, 'price_cents' => 10000]);
+    $coupon = Coupon::factory()->fixed(1500)->create(['code' => 'ONEUSE', 'max_uses' => 1]);
+
+    // Both components read times_used = 0 before either checkout submits.
+    $first = submitOrderWithCoupon($product, 'ONEUSE')->assertSet('appliedCoupon.id', $coupon->id);
+    $second = submitOrderWithCoupon($product, 'ONEUSE')->assertSet('appliedCoupon.id', $coupon->id);
+
+    $first->call('submitOrder');
+    $second->call('submitOrder')->assertHasErrors('couponCode');
+
+    expect($coupon->fresh()->times_used)->toBe(1);
+    expect(Order::whereNotNull('coupon_id')->count())->toBe(1);
+    expect(Order::where('discount_cents_snapshot', '>', 0)->count())->toBe(1);
+});

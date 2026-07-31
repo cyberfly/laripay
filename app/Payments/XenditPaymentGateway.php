@@ -52,7 +52,6 @@ class XenditPaymentGateway implements PaymentGateway
             $order = Order::query()
                 ->where('order_number', $externalId)
                 ->orWhere('xendit_invoice_id', $invoiceId)
-                ->lockForUpdate()
                 ->first();
 
             abort_if($order === null, 404);
@@ -64,14 +63,20 @@ class XenditPaymentGateway implements PaymentGateway
             if (in_array($status, self::PAID_STATUSES, true)) {
                 abort_unless($this->amountMatches($order, $amount), 422);
 
+                if (! $order->markAsPaid()) {
+                    return;
+                }
+
                 $order->forceFill(['payment_reference' => $invoiceId])->save();
-                $order->markAsPaid();
 
                 return;
             }
 
             if (in_array($status, self::FAILED_STATUSES, true)) {
-                $order->forceFill(['payment_status' => PaymentStatus::Failed])->save();
+                Order::query()
+                    ->whereKey($order->id)
+                    ->where('payment_status', PaymentStatus::Pending)
+                    ->update(['payment_status' => PaymentStatus::Failed, 'updated_at' => now()]);
             }
         });
     }

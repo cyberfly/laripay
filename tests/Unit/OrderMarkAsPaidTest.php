@@ -23,3 +23,20 @@ test('markAsPaid sets payment status, paid_at, confirmed by, and fires OrderPaid
 
     Event::assertDispatched(OrderPaid::class, fn (OrderPaid $event): bool => $event->order->is($order));
 });
+
+test('only one of two concurrent markAsPaid calls wins and OrderPaid fires once', function () {
+    Event::fake(OrderPaid::class);
+
+    $order = Order::factory()->pending()->create();
+
+    // Two handlers that each read the order while it was still pending.
+    $first = Order::find($order->id);
+    $second = Order::find($order->id);
+
+    expect($first->markAsPaid())->toBeTrue();
+    expect($second->markAsPaid())->toBeFalse();
+
+    expect($order->fresh()->payment_status)->toBe(PaymentStatus::Paid);
+
+    Event::assertDispatchedTimes(OrderPaid::class, 1);
+});
