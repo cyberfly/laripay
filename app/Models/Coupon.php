@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\DiscountType;
 use Database\Factories\CouponFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -66,6 +67,30 @@ class Coupon extends Model
             && ($this->expires_at === null || $this->expires_at->gte($now))
             && ($this->max_uses === null || $this->times_used < $this->max_uses)
             && $subtotalCents >= $this->min_order_cents;
+    }
+
+    /**
+     * Atomically claim one redemption, returning whether a use was still
+     * available. The `max_uses` guard is part of the UPDATE statement rather
+     * than a `lockForUpdate()` read, so two concurrent checkouts can never
+     * both claim the last use on any driver, including SQLite where
+     * `lockForUpdate()` emits no lock clause.
+     */
+    public function claimRedemption(): bool
+    {
+        $claimed = static::query()
+            ->whereKey($this->getKey())
+            ->where(fn (Builder $query) => $query->whereNull('max_uses')->orWhereColumn('times_used', '<', 'max_uses'))
+            ->increment('times_used');
+
+        if ($claimed === 0) {
+            return false;
+        }
+
+        $this->times_used++;
+        $this->syncOriginal();
+
+        return true;
     }
 
     public function calculateDiscount(int $subtotalCents): int

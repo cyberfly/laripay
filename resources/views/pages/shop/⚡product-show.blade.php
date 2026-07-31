@@ -130,9 +130,9 @@ new #[Layout('layouts::shop')] class extends Component
             $discountCents = 0;
 
             if ($this->appliedCoupon) {
-                $coupon = Coupon::whereKey($this->appliedCoupon->id)->lockForUpdate()->first();
+                $coupon = Coupon::whereKey($this->appliedCoupon->id)->first();
 
-                if (! $coupon || ! $coupon->isRedeemable($subtotalCents)) {
+                if (! $coupon || ! $coupon->isRedeemable($subtotalCents) || ! $coupon->claimRedemption()) {
                     throw ValidationException::withMessages([
                         'couponCode' => __('This coupon is no longer valid.'),
                     ]);
@@ -165,8 +165,6 @@ new #[Layout('layouts::shop')] class extends Component
                 'payment_status' => 'pending',
                 'status' => 'new',
             ]);
-
-            $coupon?->increment('times_used');
 
             return $order;
         });

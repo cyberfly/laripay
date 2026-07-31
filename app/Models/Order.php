@@ -105,14 +105,41 @@ class Order extends Model
         });
     }
 
-    public function markAsPaid(?User $confirmedBy = null): void
+    /**
+     * Atomically transition a pending order to paid, returning whether this
+     * call was the one that won the transition. The guard lives in the UPDATE
+     * statement itself rather than in a `lockForUpdate()` read, so concurrent
+     * webhook deliveries (or a webhook racing an admin confirmation) fire
+     * `OrderPaid` exactly once on every driver, including SQLite where
+     * `lockForUpdate()` emits no lock clause.
+     */
+    public function markAsPaid(?User $confirmedBy = null): bool
     {
+        $paidAt = Carbon::now();
+
+        $claimed = static::query()
+            ->whereKey($this->getKey())
+            ->where('payment_status', PaymentStatus::Pending)
+            ->update([
+                'payment_status' => PaymentStatus::Paid,
+                'paid_at' => $paidAt,
+                'payment_confirmed_by' => $confirmedBy?->id,
+                'updated_at' => $paidAt,
+            ]);
+
+        if ($claimed === 0) {
+            return false;
+        }
+
         $this->forceFill([
             'payment_status' => PaymentStatus::Paid,
-            'paid_at' => Carbon::now(),
+            'paid_at' => $paidAt,
             'payment_confirmed_by' => $confirmedBy?->id,
-        ])->save();
+            'updated_at' => $paidAt,
+        ])->syncOriginal();
 
         event(new OrderPaid($this));
+
+        return true;
     }
 }
