@@ -18,6 +18,10 @@ class XenditPaymentGateway implements PaymentGateway
 
     public function initiate(Order $order): PaymentInitiationResult
     {
+        if ($this->hasLiveInvoice($order)) {
+            return new PaymentInitiationResult(redirectUrl: $order->xendit_invoice_url);
+        }
+
         $invoice = Http::withBasicAuth(config('services.xendit.secret_key'), '')
             ->post('https://api.xendit.co/v2/invoices', [
                 'external_id' => $order->order_number,
@@ -33,6 +37,7 @@ class XenditPaymentGateway implements PaymentGateway
 
         $order->forceFill([
             'xendit_invoice_id' => $invoice['id'],
+            'xendit_invoice_url' => $invoice['invoice_url'],
             'xendit_expires_at' => $invoice['expiry_date'] ?? null,
         ])->save();
 
@@ -48,10 +53,15 @@ class XenditPaymentGateway implements PaymentGateway
         $status = $request->input('status');
         $amount = $request->input('amount');
 
+        abort_if(blank($externalId) && blank($invoiceId), 422);
+
         DB::transaction(function () use ($externalId, $invoiceId, $status, $amount): void {
             $order = Order::query()
-                ->where('order_number', $externalId)
-                ->orWhere('xendit_invoice_id', $invoiceId)
+                ->where(function ($query) use ($externalId, $invoiceId): void {
+                    $query
+                        ->when(filled($externalId), fn ($query) => $query->orWhere('order_number', $externalId))
+                        ->when(filled($invoiceId), fn ($query) => $query->orWhere('xendit_invoice_id', $invoiceId));
+                })
                 ->lockForUpdate()
                 ->first();
 
@@ -74,6 +84,19 @@ class XenditPaymentGateway implements PaymentGateway
                 $order->forceFill(['payment_status' => PaymentStatus::Failed])->save();
             }
         });
+    }
+
+    /**
+     * Determine whether the order already has a Xendit invoice that is still
+     * open, so a repeated initiate() reuses it instead of leaving two live
+     * invoices — and two payable checkout URLs — against the same order.
+     */
+    private function hasLiveInvoice(Order $order): bool
+    {
+        return filled($order->xendit_invoice_id)
+            && filled($order->xendit_invoice_url)
+            && $order->xendit_expires_at !== null
+            && $order->xendit_expires_at->isFuture();
     }
 
     /**

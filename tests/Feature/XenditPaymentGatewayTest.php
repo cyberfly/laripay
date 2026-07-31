@@ -47,7 +47,44 @@ test('initiate creates a xendit invoice and returns its redirect url', function 
 
     $order->refresh();
     expect($order->xendit_invoice_id)->toBe('inv_123');
+    expect($order->xendit_invoice_url)->toBe('https://checkout.xendit.co/web/inv_123');
     expect($order->xendit_expires_at)->not->toBeNull();
+});
+
+test('initiate reuses the existing invoice while it is still live', function () {
+    $order = Order::factory()->pending()->create([
+        'xendit_invoice_id' => 'inv_123',
+        'xendit_invoice_url' => 'https://checkout.xendit.co/web/inv_123',
+        'xendit_expires_at' => now()->addHour(),
+    ]);
+
+    Http::fake();
+
+    $result = (new XenditPaymentGateway)->initiate($order);
+
+    expect($result->redirectUrl)->toBe('https://checkout.xendit.co/web/inv_123');
+    Http::assertNothingSent();
+});
+
+test('initiate creates a new invoice once the previous one has expired', function () {
+    $order = Order::factory()->pending()->create([
+        'xendit_invoice_id' => 'inv_old',
+        'xendit_invoice_url' => 'https://checkout.xendit.co/web/inv_old',
+        'xendit_expires_at' => now()->subHour(),
+    ]);
+
+    Http::fake([
+        'api.xendit.co/v2/invoices' => Http::response([
+            'id' => 'inv_new',
+            'invoice_url' => 'https://checkout.xendit.co/web/inv_new',
+            'expiry_date' => now()->addDay()->toIso8601String(),
+        ], 200),
+    ]);
+
+    $result = (new XenditPaymentGateway)->initiate($order);
+
+    expect($result->redirectUrl)->toBe('https://checkout.xendit.co/web/inv_new');
+    expect($order->fresh()->xendit_invoice_id)->toBe('inv_new');
 });
 
 test('handleCallback marks the order as paid on a valid PAID payload', function () {
@@ -156,6 +193,70 @@ test('handleCallback fails closed with 403 when no callback token is configured'
 
     (new XenditPaymentGateway)->handleCallback($request);
 })->throws(HttpException::class);
+
+test('handleCallback does not touch manual-payment orders when the payload carries no invoice id', function () {
+    Event::fake([OrderPaid::class]);
+
+    $manualOrder = Order::factory()->pending()->create([
+        'xendit_invoice_id' => null,
+        'total_cents_snapshot' => 150000,
+    ]);
+
+    $request = Request::create('/webhooks/xendit', 'POST', [
+        'external_id' => 'ORD-UNKNOWN',
+        'status' => 'PAID',
+        'amount' => 1500,
+    ]);
+    $request->headers->set('x-callback-token', 'test-callback-token');
+
+    expect(fn () => (new XenditPaymentGateway)->handleCallback($request))
+        ->toThrow(NotFoundHttpException::class);
+
+    expect($manualOrder->fresh()->payment_status)->toBe(PaymentStatus::Pending);
+    Event::assertNotDispatched(OrderPaid::class);
+});
+
+test('handleCallback does not fail an unrelated order on an EXPIRED payload with no invoice id', function () {
+    $manualOrder = Order::factory()->pending()->create(['xendit_invoice_id' => null]);
+
+    $request = Request::create('/webhooks/xendit', 'POST', [
+        'external_id' => 'ORD-UNKNOWN',
+        'status' => 'EXPIRED',
+    ]);
+    $request->headers->set('x-callback-token', 'test-callback-token');
+
+    expect(fn () => (new XenditPaymentGateway)->handleCallback($request))
+        ->toThrow(NotFoundHttpException::class);
+
+    expect($manualOrder->fresh()->payment_status)->toBe(PaymentStatus::Pending);
+});
+
+test('handleCallback aborts with 422 when the payload identifies no order at all', function () {
+    $manualOrder = Order::factory()->pending()->create(['xendit_invoice_id' => null]);
+
+    $request = Request::create('/webhooks/xendit', 'POST', ['status' => 'EXPIRED']);
+    $request->headers->set('x-callback-token', 'test-callback-token');
+
+    expect(fn () => (new XenditPaymentGateway)->handleCallback($request))
+        ->toThrow(HttpException::class);
+
+    expect($manualOrder->fresh()->payment_status)->toBe(PaymentStatus::Pending);
+});
+
+test('handleCallback still resolves the order by invoice id alone', function () {
+    $order = Order::factory()->pending()->create(['xendit_invoice_id' => 'inv_123', 'total_cents_snapshot' => 150000]);
+
+    $request = Request::create('/webhooks/xendit', 'POST', [
+        'id' => 'inv_123',
+        'status' => 'PAID',
+        'amount' => 1500,
+    ]);
+    $request->headers->set('x-callback-token', 'test-callback-token');
+
+    (new XenditPaymentGateway)->handleCallback($request);
+
+    expect($order->fresh()->payment_status)->toBe(PaymentStatus::Paid);
+});
 
 test('handleCallback aborts with 404 when the order cannot be found', function () {
     $request = Request::create('/webhooks/xendit', 'POST', [
