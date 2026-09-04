@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
@@ -9,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,7 +29,11 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
 
-        Gate::define('access-admin', fn (User $user): bool => $user->is_admin);
+        Gate::define('access-admin', fn (User $user): bool => (bool) $user->is_admin);
+
+        Livewire::addPersistentMiddleware([
+            EnsureUserIsAdmin::class,
+        ]);
     }
 
     /**

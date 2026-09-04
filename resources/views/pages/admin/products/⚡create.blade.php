@@ -1,5 +1,6 @@
 <?php
 
+use App\Concerns\RequiresAdminAccess;
 use App\Livewire\Forms\ProductForm;
 use Flux\Flux;
 use Livewire\Attributes\Title;
@@ -8,7 +9,7 @@ use Livewire\WithFileUploads;
 
 new #[Title('New product')] class extends Component
 {
-    use WithFileUploads;
+    use RequiresAdminAccess, WithFileUploads;
 
     public ProductForm $form;
 

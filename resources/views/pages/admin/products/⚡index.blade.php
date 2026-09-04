@@ -1,5 +1,6 @@
 <?php
 
+use App\Concerns\RequiresAdminAccess;
 use App\Enums\ProductType;
 use App\Models\Product;
 use Flux\Flux;
@@ -11,7 +12,7 @@ use Livewire\WithPagination;
 
 new #[Title('Products')] class extends Component
 {
-    use WithPagination;
+    use RequiresAdminAccess, WithPagination;
 
     #[Url]
     public string $search = '';

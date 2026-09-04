@@ -1,13 +1,18 @@
 <?php
 
+use App\Concerns\RequiresAdminAccess;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 new #[Title('Customer details')] class extends Component
 {
+    use RequiresAdminAccess;
+
+    #[Locked]
     public string $email;
 
     public function mount(string $email): void
