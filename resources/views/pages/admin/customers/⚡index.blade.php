@@ -1,5 +1,6 @@
 <?php
 
+use App\Concerns\RequiresAdminAccess;
 use App\Models\Order;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -8,7 +9,7 @@ use Livewire\WithPagination;
 
 new #[Title('Customers')] class extends Component
 {
-    use WithPagination;
+    use RequiresAdminAccess, WithPagination;
 
     #[Url]
     public string $search = '';

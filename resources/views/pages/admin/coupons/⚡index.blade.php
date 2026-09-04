@@ -1,5 +1,6 @@
 <?php
 
+use App\Concerns\RequiresAdminAccess;
 use App\Enums\DiscountType;
 use App\Models\Coupon;
 use Flux\Flux;
@@ -9,7 +10,7 @@ use Livewire\WithPagination;
 
 new #[Title('Coupons')] class extends Component
 {
-    use WithPagination;
+    use RequiresAdminAccess, WithPagination;
 
     public function delete(Coupon $coupon): void
     {

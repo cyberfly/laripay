@@ -1,5 +1,6 @@
 <?php
 
+use App\Concerns\RequiresAdminAccess;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
@@ -10,6 +11,8 @@ use Livewire\Component;
 
 new #[Title('Admin dashboard')] class extends Component
 {
+    use RequiresAdminAccess;
+
     public int $productCount = 0;
 
     public int $pendingOrderCount = 0;

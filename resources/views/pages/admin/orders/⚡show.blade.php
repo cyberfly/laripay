@@ -1,15 +1,20 @@
 <?php
 
+use App\Concerns\RequiresAdminAccess;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
 new #[Title('Order details')] class extends Component
 {
+    use RequiresAdminAccess;
+
+    #[Locked]
     public Order $order;
 
     public string $status = '';

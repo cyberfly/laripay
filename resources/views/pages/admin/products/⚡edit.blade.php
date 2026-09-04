@@ -1,16 +1,19 @@
 <?php
 
+use App\Concerns\RequiresAdminAccess;
 use App\Livewire\Forms\ProductForm;
 use App\Models\Product;
 use Flux\Flux;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
 new #[Title('Edit product')] class extends Component
 {
-    use WithFileUploads;
+    use RequiresAdminAccess, WithFileUploads;
 
+    #[Locked]
     public Product $product;
 
     public ProductForm $form;

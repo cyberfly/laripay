@@ -1,5 +1,6 @@
 <?php
 
+use App\Concerns\RequiresAdminAccess;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
@@ -10,7 +11,7 @@ use Livewire\WithPagination;
 
 new #[Title('Orders')] class extends Component
 {
-    use WithPagination;
+    use RequiresAdminAccess, WithPagination;
 
     #[Url]
     public string $status = '';

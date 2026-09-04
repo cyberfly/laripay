@@ -1,13 +1,18 @@
 <?php
 
+use App\Concerns\RequiresAdminAccess;
 use App\Livewire\Forms\CouponForm;
 use App\Models\Coupon;
 use Flux\Flux;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
 new #[Title('Edit coupon')] class extends Component
 {
+    use RequiresAdminAccess;
+
+    #[Locked]
     public Coupon $coupon;
 
     public CouponForm $form;
